@@ -329,8 +329,29 @@ fn earth_like_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     base_color * fragment.intensity
 }
 
+// Definición del shader para gas_giant_shader
+fn gas_giant_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
+    let x = fragment.vertex_position.x;
+    let y = fragment.vertex_position.y;
+    let zoom = 30.0;
 
+    // Usar ruido Perlin para crear patrones de nubes
+    let noise_value = uniforms.noise_perlin.get_noise_2d(x * zoom, y * zoom);
+    let normalized_noise = ((noise_value + 1.0) / 2.0).clamp(0.0, 1.0);
 
+    // Definir colores base para el gigante gaseoso
+    let base_color = Color::new(70, 130, 180); // Azul acero
+    let cloud_color = Color::new(255, 255, 255); // Blanco para nubes
+
+    // Mezcla de colores basada en el ruido
+    let final_color = base_color.lerp(&cloud_color, normalized_noise * 0.5);
+
+    final_color * fragment.intensity
+}
+
+fn orbit_shader(_fragment: &Fragment, _uniforms: &Uniforms) -> Color {
+    Color::new(255, 255, 255) // Blanco puro
+}
 
 
 pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms, shader_type: &str) -> Color {
@@ -339,12 +360,14 @@ pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms, shader_type: &s
         "volcanic_planet_shader" => volcanic_planet_shader(fragment, uniforms),
         "molten_core_planet_shader" => molten_core_planet_shader(fragment, uniforms),
         "crystal_planet_shader" => crystal_planet_shader(fragment, uniforms),
-        "vortex" => vortex_planet_shader(fragment, uniforms),
+        "vortex_planet_shader" => vortex_planet_shader(fragment, uniforms), 
         "ringed_planet" => ringed_planet(fragment, uniforms),
         "ring_shader" => ring_shader(fragment, uniforms),
         "moon_shader" => moon_shader(fragment, uniforms),
         "rocky_planet" => rocky_planet(fragment, uniforms),
         "earth_like_planet_shader" => earth_like_planet_shader(fragment, uniforms),
+        "gas_giant_shader" => gas_giant_shader(fragment, uniforms), 
+        "orbit_shader" => orbit_shader(fragment, uniforms), 
         _ => Color::new(0, 0, 0),
     }
 }

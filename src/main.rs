@@ -1,4 +1,4 @@
-use nalgebra_glm::{Vec3, Mat4};
+use nalgebra_glm::{Vec2, Vec3, Mat4};
 use minifb::{Key, Window, WindowOptions};
 use std::time::Duration;
 
@@ -17,6 +17,7 @@ use vertex::Vertex;
 use obj::Obj;
 use triangle::triangle;
 use shaders::vertex_shader;
+use color::Color;
 use crate::fragment::fragment_shader;
 use fastnoise_lite::{FastNoiseLite, NoiseType, CellularDistanceFunction};
 use std::clone::Clone;
@@ -189,6 +190,28 @@ fn create_noise() -> FastNoiseLite {
     noise
 }
 
+
+
+fn create_orbit_points(center: Vec3, radius: f32, segments: usize) -> Vec<Vertex> {
+    let mut points = Vec::new();
+    for i in 0..segments {
+        let angle = (i as f32 / segments as f32) * 2.0 * std::f32::consts::PI;
+        let x = center.x + radius * angle.cos();
+        let y = center.y + radius * angle.sin();
+        points.push(Vertex {
+            position: Vec3::new(x, y, 0.0),
+            normal: Vec3::new(0.0, 0.0, 1.0),
+            tex_coords: Vec2::new(0.0, 0.0), // Cambiado a Vec2
+            color: Color::new(255, 255, 255), // Color blanco
+            transformed_position: Vec3::zeros(),
+            transformed_normal: Vec3::zeros(),
+        });
+    }
+    points
+}
+
+
+
 pub struct Planet {
     name: &'static str,
     scale: f32,
@@ -196,6 +219,10 @@ pub struct Planet {
     orbit_speed: f32,
     rotation_speed: f32,
     shader: &'static str,
+    ring_shader: Option<&'static str>, // Shader para el anillo
+    ring_scale: Option<f32>,          // Escala del anillo
+    moon_shader: Option<&'static str>, // Shader para la luna
+    moon_scale: Option<f32>,          // Escala de la luna
 }
 
 
@@ -209,6 +236,10 @@ fn main() {
             orbit_speed: 0.02,
             rotation_speed: 0.1,
             shader: "molten_core_planet_shader",
+            ring_shader: None,
+            ring_scale: None,
+            moon_shader: None,
+            moon_scale: None,
         },
         Planet {
             name: "Venus",
@@ -217,6 +248,10 @@ fn main() {
             orbit_speed: 0.015,
             rotation_speed: 0.09,
             shader: "volcanic_planet_shader",
+            ring_shader: None,
+            ring_scale: None,
+            moon_shader: None,
+            moon_scale: None,
         },
         Planet {
             name: "Earth",
@@ -225,6 +260,10 @@ fn main() {
             orbit_speed: 0.01,
             rotation_speed: 0.08,
             shader: "earth_like_planet_shader",
+            ring_shader: None,
+            ring_scale: None,
+            moon_shader: Some("moon_shader"),
+            moon_scale: Some(0.3),
         },
         Planet {
             name: "Mars",
@@ -233,6 +272,10 @@ fn main() {
             orbit_speed: 0.008,
             rotation_speed: 0.07,
             shader: "rocky_planet",
+            ring_shader: None,
+            ring_scale: None,
+            moon_shader: None,
+            moon_scale: None,
         },
         Planet {
             name: "Jupiter",
@@ -241,6 +284,10 @@ fn main() {
             orbit_speed: 0.005,
             rotation_speed: 0.06,
             shader: "gas_giant_shader",
+            ring_shader: None,
+            ring_scale: None,
+            moon_shader: None,
+            moon_scale: None,
         },
         Planet {
             name: "Saturn",
@@ -249,6 +296,10 @@ fn main() {
             orbit_speed: 0.004,
             rotation_speed: 0.05,
             shader: "ringed_planet",
+            ring_shader: Some("ring_shader"),
+            ring_scale: Some(1.3),
+            moon_shader: Some("moon_shader"),
+            moon_scale: Some(0.4),
         },
         Planet {
             name: "Uranus",
@@ -257,9 +308,12 @@ fn main() {
             orbit_speed: 0.003,
             rotation_speed: 0.04,
             shader: "crystal_planet_shader",
+            ring_shader: None,
+            ring_scale: None,
+            moon_shader: None,
+            moon_scale: None,
         },
     ];
-    
 
     let window_width = 800;
     let window_height = 600;
@@ -285,6 +339,8 @@ fn main() {
     let vertex_arrays = obj.get_vertex_array();
     let ring_obj = Obj::load("assets/ring.obj").expect("Failed to load rings.obj");
     let ring_vertex_array = ring_obj.get_vertex_array();
+    let moon_obj = Obj::load("assets/moon.obj").expect("Failed to load moon.obj");
+    let moon_vertex_array = moon_obj.get_vertex_array();
 
     let mut time = 0;
 
@@ -303,6 +359,18 @@ fn main() {
     let mut camera_translation = Vec3::new(0.0, 0.0, 0.0);
     let mut camera_rotation = Vec3::new(0.0, 0.0, 0.0);
     let mut camera_scale = 1.0f32;
+
+
+    let orbit_segments = 100; // Número de segmentos para suavizar las líneas
+    let orbits: Vec<Vec<Vertex>> = planets
+        .iter()
+        .map(|planet| create_orbit_points(
+            Vec3::new(window_width as f32 / 2.0, window_height as f32 / 2.0, 0.0),
+            planet.orbit_radius,
+            orbit_segments,
+        ))
+        .collect();
+
 
     while window.is_open() {
         if window.is_key_down(Key::Escape) {
@@ -403,7 +471,88 @@ fn main() {
                 &vertex_arrays,
                 planet.shader,
             );
+
+            if let (Some(ring_shader), Some(ring_scale)) = (planet.ring_shader, planet.ring_scale) {
+                let ring_model_matrix = create_model_matrix(
+                    Vec3::new(orbit_x, orbit_y, 0.0), // Asegúrate de que está en la posición del planeta
+                    ring_scale * 10.0,               // Escala ajustada para que el anillo sea visible
+                    Vec3::new(0.0, 0.0, 0.0),        // Anillos normalmente no rotan en este contexto
+                );
+                
+            
+                let ring_normal_matrix = ring_model_matrix.try_inverse().unwrap().transpose();
+            
+                let ring_uniforms = Uniforms {
+                    normal_matrix: ring_normal_matrix,
+                    model_matrix: ring_model_matrix,
+                    view_matrix: view_matrix,
+                    projection_matrix: Mat4::identity(),
+                    viewport_matrix: Mat4::identity(),
+                    time,
+                    noise_open_simplex: create_open_simplex_noise(),
+                    noise_cellular: create_cellular_noise(),
+                    noise_perlin: create_perlin_noise(),
+                    noise_value: create_value_noise(),
+                    noise_value_cubic: create_value_cubic_noise(),
+                };
+            
+                render(&mut framebuffer, &ring_uniforms, &ring_vertex_array, ring_shader);
+            }
+
+            if let (Some(moon_shader), Some(moon_scale)) = (planet.moon_shader, planet.moon_scale) {
+                let moon_orbit_radius = planet.scale * 100.0; // Relación con el tamaño del planeta
+                let moon_angle = time as f32 * 0.01;         // Ajusta la velocidad angular
+                let moon_x = orbit_x + moon_orbit_radius * moon_angle.cos();
+                let moon_y = orbit_y + moon_orbit_radius * moon_angle.sin();
+                
+            
+                let moon_model_matrix = create_model_matrix(
+                    Vec3::new(moon_x, moon_y, 0.0),
+                    moon_scale * 10.0, // Ajusta la escala manualmente si no es visible
+                    Vec3::new(0.0, 0.0, 0.0),
+                );
+            
+                let moon_normal_matrix = moon_model_matrix.try_inverse().unwrap().transpose();
+            
+                let moon_uniforms = Uniforms {
+                    normal_matrix: moon_normal_matrix,
+                    model_matrix: moon_model_matrix,
+                    view_matrix: view_matrix,
+                    projection_matrix: Mat4::identity(),
+                    viewport_matrix: Mat4::identity(),
+                    time,
+                    noise_open_simplex: create_open_simplex_noise(),
+                    noise_cellular: create_cellular_noise(),
+                    noise_perlin: create_perlin_noise(),
+                    noise_value: create_value_noise(),
+                    noise_value_cubic: create_value_cubic_noise(),
+                };
+            
+                render(&mut framebuffer, &moon_uniforms, &moon_vertex_array, moon_shader);
+            }
+            
+            
         }
+
+        for orbit_points in &orbits {
+            let orbit_model_matrix = Mat4::identity(); // Las órbitas no rotan ni se escalan
+            let orbit_uniforms = Uniforms {
+                model_matrix: orbit_model_matrix,
+                view_matrix: view_matrix,
+                projection_matrix: Mat4::identity(),
+                viewport_matrix: Mat4::identity(),
+                normal_matrix: orbit_model_matrix.try_inverse().unwrap().transpose(),
+                time,
+                noise_open_simplex: create_open_simplex_noise(),
+                noise_cellular: create_cellular_noise(),
+                noise_perlin: create_perlin_noise(),
+                noise_value: create_value_noise(),
+                noise_value_cubic: create_value_cubic_noise(),
+            };
+        
+            render(&mut framebuffer, &orbit_uniforms, &orbit_points, "orbit_shader");
+        }
+        
 
         // Renderizar el objeto seleccionado con shaders específicos
         match selected_object {
