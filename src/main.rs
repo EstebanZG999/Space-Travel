@@ -382,9 +382,9 @@ fn main() {
     let mut selected_object: u8 = STAR;
 
     // Definir las variables de la cámara al inicio de `main`
-    let mut camera_translation = Vec3::new(0.0, 0.0, -1000.0);
-    let mut camera_rotation = Vec3::new(0.0, 0.0, 0.0);
-    let mut camera_scale = 1.0f32;
+    let mut camera_translation = Vec3::new(-500.0, 0.0, -1000.0); // Cámara más alejada
+    let mut camera_rotation = Vec3::new(1.0, 0.5, 0.0);
+    let mut camera_scale = 5.0f32;
 
 
     //Orbitas
@@ -399,8 +399,7 @@ fn main() {
         .collect();
 
 
-    //SUN POSITION
-    let sun_position = Vec3::new(window_width as f32 / 2.0, window_height as f32 / 2.0, camera_translation.z);
+
 
 
     while window.is_open() {
@@ -411,6 +410,14 @@ fn main() {
         time += 1;
 
         framebuffer.clear();
+
+        //SUN POSITION
+        let sun_position = Vec3::new(
+            window_width as f32 / 2.0,
+            window_height as f32 / 2.0,
+            camera_translation.z, // Actualizar Z según la posición de la cámara
+        );
+
 
 
         let warp_points = create_warp_points(&planets, sun_position, time);    
@@ -423,7 +430,8 @@ fn main() {
         }*/
 
 
-        handle_warp(&window, &warp_points, &mut camera_translation, &mut camera_scale);
+        handle_warp(&window, &warp_points, &mut camera_translation, &mut camera_rotation, &mut camera_scale);
+
 
         /*println!("Camera Translation: {:?}", camera_translation);
         println!("Camera Scale: {:?}", camera_scale);*/
@@ -903,6 +911,7 @@ fn handle_warp(
     window: &Window,
     warp_points: &[WarpPoint],
     camera_translation: &mut Vec3,
+    camera_rotation: &mut Vec3,
     camera_scale: &mut f32,
 ) {
     let keys = [
@@ -917,14 +926,16 @@ fn handle_warp(
 
     for (i, warp_point) in warp_points.iter().enumerate() {
         if i < keys.len() && window.is_key_down(keys[i]) {
-            // Ajustar cámara al centro de referencia del sistema
-            *camera_translation = warp_point.position - Vec3::new(400.0, 300.0, 0.0); // Asegúrate que la cámara centre el planeta
-            *camera_scale = warp_point.zoom_level;
+            // Resetear la cámara a la vista desde arriba
+            *camera_translation = warp_point.position - Vec3::new(400.0, 300.0, 0.0); // Centrar en el planeta
+            *camera_rotation = Vec3::new(0.0, 0.0, 0.0); // Sin rotación
+            *camera_scale = warp_point.zoom_level; // Aplicar el zoom del warp point
 
-            /*println!(
-                "Warping to planet: {}, Position: {:?}, Zoom: {}",
-                warp_point.name, warp_point.position, warp_point.zoom_level
-            );*/
+            println!(
+                "Warping to planet: {}, New Translation: {:?}, New Rotation: {:?}, New Zoom: {}",
+                warp_point.name, camera_translation, camera_rotation, camera_scale
+            );
+
             return;
         }
     }
