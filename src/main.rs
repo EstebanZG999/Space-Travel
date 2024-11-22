@@ -10,6 +10,8 @@ mod obj;
 mod color;
 mod fragment;
 mod shaders;
+mod skybox;
+
 
 
 use framebuffer::Framebuffer;
@@ -22,6 +24,8 @@ use crate::fragment::fragment_shader;
 use fastnoise_lite::{FastNoiseLite, NoiseType, CellularDistanceFunction};
 use std::clone::Clone;
 use nalgebra_glm as glm;
+use crate::line::draw_line;
+
 
 
 pub struct Uniforms {
@@ -45,14 +49,13 @@ impl Clone for Uniforms {
             view_matrix: self.view_matrix,
             projection_matrix: self.projection_matrix,
             viewport_matrix: self.viewport_matrix,
-            normal_matrix: self.normal_matrix, // Incluir este campo
+            normal_matrix: self.normal_matrix, 
             time: self.time,
             noise_open_simplex: create_open_simplex_noise(),
             noise_cellular: create_cellular_noise(),
             noise_perlin: create_perlin_noise(),
             noise_value: create_value_noise(),
             noise_value_cubic: create_value_cubic_noise(),
-            // clonar otros campos...
         }
     }
 }
@@ -210,6 +213,18 @@ fn create_orbit_points(center: Vec3, radius: f32, segments: usize) -> Vec<Vertex
     points
 }
 
+fn render_orbit(
+    framebuffer: &mut Framebuffer,
+    points: &[Vertex],
+    color: Color,
+) {
+    for i in 0..points.len() {
+        let p1 = &points[i];
+        let p2 = &points[(i + 1) % points.len()]; // Conectar el último punto con el primero
+        draw_line(p1, p2, framebuffer, color);
+    }
+}
+
 
 
 pub struct Planet {
@@ -333,7 +348,9 @@ fn main() {
     window.set_position(500, 500);
     window.update();
 
-    framebuffer.set_background_color(0x333355);
+    //SKYBOX
+    let skybox = skybox::Skybox::new(10000); // Ajusta el número de estrellas
+
 
     let obj = Obj::load("assets/spheresmooth.obj").expect("Failed to load obj");
     let vertex_arrays = obj.get_vertex_array();
@@ -356,12 +373,13 @@ fn main() {
     let mut selected_object: u8 = STAR;
 
     // Definir las variables de la cámara al inicio de `main`
-    let mut camera_translation = Vec3::new(0.0, 0.0, 0.0);
+    let mut camera_translation = Vec3::new(0.0, 0.0, -500.0); // Aleja la cámara para ver el skybox
     let mut camera_rotation = Vec3::new(0.0, 0.0, 0.0);
     let mut camera_scale = 1.0f32;
 
 
-    let orbit_segments = 100; // Número de segmentos para suavizar las líneas
+    //Orbitas
+    let orbit_segments = 60; // Número de segmentos para suavizar las líneas
     let orbits: Vec<Vec<Vertex>> = planets
         .iter()
         .map(|planet| create_orbit_points(
@@ -378,6 +396,8 @@ fn main() {
         }
         time += 1;
 
+        framebuffer.clear();
+
         handle_input(&window, &mut camera_translation, &mut camera_rotation, &mut camera_scale);
 
         // Depuración de valores de la cámara
@@ -387,6 +407,30 @@ fn main() {
 
         let view_matrix = create_view_matrix(camera_translation, camera_rotation, camera_scale);
 
+        // Crear uniforms para el Skybox
+        let skybox_uniforms = Uniforms {
+            model_matrix: Mat4::identity(),
+            view_matrix,
+            projection_matrix: glm::perspective(
+                framebuffer_width as f32 / framebuffer_height as f32, // Relación de aspecto
+                45.0_f32.to_radians(),                               // Campo de visión
+                0.1,                                                 // Plano cercano
+                2000.0,                                              // Plano lejano ajustado
+            ),
+            viewport_matrix: glm::scaling(&Vec3::new(
+                framebuffer_width as f32 / 2.0,
+                framebuffer_height as f32 / 2.0,
+                1.0,
+            )),
+            normal_matrix: Mat4::identity(),
+            time,
+            noise_open_simplex: create_open_simplex_noise(),
+            noise_cellular: create_cellular_noise(),
+            noise_perlin: create_perlin_noise(),
+            noise_value: create_value_noise(),
+            noise_value_cubic: create_value_cubic_noise(),
+        };
+        
 
         // Cambiamos el objeto seleccionado con teclas
         if window.is_key_down(Key::Key1) {
@@ -404,8 +448,29 @@ fn main() {
         } else if window.is_key_down(Key::Key7) {
             selected_object = EARTH_LIKE_PLANET;
         }
+        
 
-        framebuffer.clear();
+        // Renderizar el Skybox
+        skybox.render(&mut framebuffer, &skybox_uniforms, camera_translation);
+
+        for orbit_points in &orbits {
+            let orbit_model_matrix = Mat4::identity(); // Las órbitas no rotan ni se escalan
+            let orbit_uniforms = Uniforms {
+                model_matrix: orbit_model_matrix,
+                view_matrix: view_matrix,
+                projection_matrix: Mat4::identity(),
+                viewport_matrix: Mat4::identity(),
+                normal_matrix: orbit_model_matrix.try_inverse().unwrap().transpose(),
+                time,
+                noise_open_simplex: create_open_simplex_noise(),
+                noise_cellular: create_cellular_noise(),
+                noise_perlin: create_perlin_noise(),
+                noise_value: create_value_noise(),
+                noise_value_cubic: create_value_cubic_noise(),
+            };
+        
+            render(&mut framebuffer, &orbit_uniforms, &orbit_points, "orbit_shader");
+        }
 
         // Renderizar el Sol
         let sun_translation =
@@ -440,6 +505,15 @@ fn main() {
 
         // Renderizar los planetas
         for planet in &planets {
+            let orbit_points = create_orbit_points(
+                Vec3::new(window_width as f32 / 2.0, window_height as f32 / 2.0, 0.0),
+                planet.orbit_radius,
+                100, // Número de segmentos para una órbita más suave
+            );
+
+            render_orbit(&mut framebuffer, &orbit_points, Color::new(255, 255, 255)); // Blanco
+
+
             let angle = time as f32 * planet.orbit_speed;
             let orbit_x = (planet.orbit_radius * angle.cos()) + (window_width as f32 / 2.0);
             let orbit_y = (planet.orbit_radius * angle.sin()) + (window_height as f32 / 2.0);
@@ -469,7 +543,7 @@ fn main() {
                 &mut framebuffer,
                 &planet_uniforms,
                 &vertex_arrays,
-                planet.shader,
+                planet.shader
             );
 
             if let (Some(ring_shader), Some(ring_scale)) = (planet.ring_shader, planet.ring_scale) {
@@ -533,27 +607,7 @@ fn main() {
             
             
         }
-
-        for orbit_points in &orbits {
-            let orbit_model_matrix = Mat4::identity(); // Las órbitas no rotan ni se escalan
-            let orbit_uniforms = Uniforms {
-                model_matrix: orbit_model_matrix,
-                view_matrix: view_matrix,
-                projection_matrix: Mat4::identity(),
-                viewport_matrix: Mat4::identity(),
-                normal_matrix: orbit_model_matrix.try_inverse().unwrap().transpose(),
-                time,
-                noise_open_simplex: create_open_simplex_noise(),
-                noise_cellular: create_cellular_noise(),
-                noise_perlin: create_perlin_noise(),
-                noise_value: create_value_noise(),
-                noise_value_cubic: create_value_cubic_noise(),
-            };
         
-            render(&mut framebuffer, &orbit_uniforms, &orbit_points, "orbit_shader");
-        }
-        
-
         // Renderizar el objeto seleccionado con shaders específicos
         match selected_object {
             STAR => {
