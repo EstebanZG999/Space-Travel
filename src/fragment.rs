@@ -9,15 +9,17 @@ pub struct Fragment {
     pub depth: f32,
     pub intensity: f32,
     pub vertex_position: Vec3,
+    pub normal: Vec3,
 }
 
 impl Fragment {
-    pub fn new(position: Vec2, depth: f32,intensity: f32, vertex_position: Vec3) -> Self {
+    pub fn new(position: Vec2, depth: f32, intensity: f32, vertex_position: Vec3, normal: Vec3) -> Self {
         Fragment {
             position,
             depth,
             intensity,
-            vertex_position
+            vertex_position,
+            normal
         }
     }
 }
@@ -179,7 +181,7 @@ fn vortex_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
 
 fn ringed_planet(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     let zoom = 4.0;
-    let x = fragment.vertex_position.x;
+    let _x = fragment.vertex_position.x;
     let y = fragment.vertex_position.y;
     let time = uniforms.time as f32 * 0.03;
 
@@ -242,7 +244,6 @@ pub fn rocky_planet(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     let color_sombra = Color::new(105, 60, 45);      
     let color_mineral = Color::new(189, 183, 107);   
 
-    // Ajuste de la frecuencia para el patrón de mosaico
     let zoom = 1000.0; 
     let x = fragment.vertex_position.x * zoom;
     let y = fragment.vertex_position.y * zoom;
@@ -250,11 +251,9 @@ pub fn rocky_planet(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     let noise_value = uniforms.noise_value.get_noise_2d(x, y);
     let normalized_noise = ((noise_value + 1.0) * 0.5).clamp(0.0, 1.0);
 
-    // Definir el umbral para el efecto de fractura
     let fracture_threshold = 0.35;
     let is_fracture = normalized_noise > fracture_threshold;
 
-    // Interpolación patrón rocoso y simular grietas
     let color_intermediate = color_roca.lerp(&color_sombra, normalized_noise * 0.8);
     let base_color = color_intermediate.lerp(&color_mineral, normalized_noise * 0.5);
 
@@ -329,29 +328,65 @@ fn earth_like_planet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     base_color * fragment.intensity
 }
 
-// Definición del shader para gas_giant_shader
 fn gas_giant_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
     let x = fragment.vertex_position.x;
     let y = fragment.vertex_position.y;
     let zoom = 30.0;
 
-    // Usar ruido Perlin para crear patrones de nubes
     let noise_value = uniforms.noise_perlin.get_noise_2d(x * zoom, y * zoom);
     let normalized_noise = ((noise_value + 1.0) / 2.0).clamp(0.0, 1.0);
 
-    // Definir colores base para el gigante gaseoso
-    let base_color = Color::new(70, 130, 180); // Azul acero
-    let cloud_color = Color::new(255, 255, 255); // Blanco para nubes
+    let base_color = Color::new(70, 130, 180); 
+    let cloud_color = Color::new(255, 255, 255); 
 
-    // Mezcla de colores basada en el ruido
     let final_color = base_color.lerp(&cloud_color, normalized_noise * 0.5);
 
     final_color * fragment.intensity
 }
 
 fn orbit_shader(_fragment: &Fragment, _uniforms: &Uniforms) -> Color {
-    Color::new(255, 255, 255) // Blanco puro
+    Color::new(255, 255, 255) 
 }
+
+
+fn jet_shader(fragment: &Fragment, uniforms: &Uniforms) -> Color {
+    let zoom = 50.0;
+    let x = fragment.vertex_position.x;
+    let y = fragment.vertex_position.y;
+    let time = uniforms.time as f32 * 0.1;
+
+    // Generar el patrón metálico con ruido
+    let metallic_pattern = uniforms
+        .noise_value
+        .get_noise_2d(x * zoom + time, y * zoom - time)
+        .abs();
+
+    // Colores base y destacables
+    let base_color = Color::new(120, 120, 160); // Más claro para mejor visibilidad
+    let highlight_color = Color::new(255, 255, 255); // Blanco para reflejos
+
+    // Mezclar los colores usando el patrón metálico
+    let blended_color = base_color.lerp(&highlight_color, metallic_pattern * 0.5);
+
+    // Luz ambiental para todas las partes
+    let ambient_color = Color::new(50, 50, 80);
+
+    // Luz especular para reflejos dinámicos
+    let light_direction = Vec3::new(0.0, 1.0, -1.0).normalize();
+    let normal = fragment.normal.normalize();
+    let specular_intensity = ((normal.dot(&light_direction)).max(0.0).powf(16.0) * 0.8)
+        .clamp(0.0, 1.0); // Reflejos especulares suaves
+    let specular_color = Color::new(255, 255, 255) * specular_intensity;
+
+    // Sumar los efectos de iluminación
+    let final_color = blended_color
+        .blend_add(&ambient_color) // Añadir luz ambiental
+        .blend_add(&specular_color) // Añadir luz especular
+        * fragment.intensity; // Escalar por la intensidad del fragmento
+
+    final_color
+}
+
 
 
 pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms, shader_type: &str) -> Color {
@@ -368,6 +403,7 @@ pub fn fragment_shader(fragment: &Fragment, uniforms: &Uniforms, shader_type: &s
         "earth_like_planet_shader" => earth_like_planet_shader(fragment, uniforms),
         "gas_giant_shader" => gas_giant_shader(fragment, uniforms), 
         "orbit_shader" => orbit_shader(fragment, uniforms), 
+        "jet_shader" => jet_shader(fragment, uniforms),
         _ => Color::new(0, 0, 0),
     }
 }

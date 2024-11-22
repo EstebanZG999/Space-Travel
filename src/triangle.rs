@@ -2,7 +2,6 @@ use nalgebra_glm::{Vec2, Vec3, dot};
 use crate::fragment::Fragment;
 use crate::vertex::Vertex;
 use crate::line::line;
-use crate::color::Color;
 
 pub fn _triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
     let mut fragments = Vec::new();
@@ -39,16 +38,19 @@ pub fn triangle(v1: &Vertex, v2: &Vertex, v3: &Vertex) -> Vec<Fragment> {
             let normal = normal.normalize();
             let intensity = dot(&normal, &light_dir).max(0.0);
 
-            let base_color = Color::new(153, 101, 21); // gris
             let depth = a.z * w1 + b.z * w2 + c.z * w3;
 
             let vertex_position = v1.position * w1 + v2.position * w2 + v3.position * w3;
+
+            let normal = v1.transformed_normal * w1 + v2.transformed_normal * w2 + v3.transformed_normal * w3;
+            let normal = normal.normalize();
 
             fragments.push(Fragment::new(
               Vec2::new(x as f32, y as f32),
               depth,
               intensity,
-              vertex_position
+              vertex_position,
+              normal,
           ));
         }
       }

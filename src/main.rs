@@ -12,8 +12,6 @@ mod fragment;
 mod shaders;
 mod skybox;
 
-
-
 use framebuffer::Framebuffer;
 use vertex::Vertex;
 use obj::Obj;
@@ -33,7 +31,7 @@ pub struct Uniforms {
     view_matrix: Mat4,
     projection_matrix: Mat4,
     viewport_matrix: Mat4,
-    normal_matrix: Mat4, // Campo agregado
+    normal_matrix: Mat4, 
     time: u32,
     noise_open_simplex: FastNoiseLite,
     noise_cellular: FastNoiseLite,
@@ -124,7 +122,6 @@ fn create_view_matrix(translation: Vec3, rotation: Vec3, scale: f32) -> Mat4 {
 
     let rotation_matrix = rotation_matrix_z * rotation_matrix_y * rotation_matrix_x;
 
-    // El orden es importante: primero escala, luego rotación, luego traslación
     let view_matrix = scaling_matrix * rotation_matrix * translation_matrix;
 
     view_matrix
@@ -179,8 +176,8 @@ fn create_orbit_points(center: Vec3, radius: f32, segments: usize) -> Vec<Vertex
         points.push(Vertex {
             position: Vec3::new(x, y, 0.0),
             normal: Vec3::new(0.0, 0.0, 1.0),
-            tex_coords: Vec2::new(0.0, 0.0), // Cambiado a Vec2
-            color: Color::new(255, 255, 255), // Color blanco
+            tex_coords: Vec2::new(0.0, 0.0), 
+            color: Color::new(255, 255, 255), 
             transformed_position: Vec3::zeros(),
             transformed_normal: Vec3::zeros(),
         });
@@ -195,7 +192,7 @@ fn render_orbit(
 ) {
     for i in 0..points.len() {
         let p1 = &points[i];
-        let p2 = &points[(i + 1) % points.len()]; // Conectar el último punto con el primero
+        let p2 = &points[(i + 1) % points.len()]; 
         draw_line(p1, p2, framebuffer, color);
     }
 }
@@ -207,25 +204,25 @@ pub struct Planet {
     orbit_speed: f32,
     rotation_speed: f32,
     shader: &'static str,
-    ring_shader: Option<&'static str>, // Shader para el anillo
-    ring_scale: Option<f32>,          // Escala del anillo
-    moon_shader: Option<&'static str>, // Shader para la luna
-    moon_scale: Option<f32>,          // Escala de la luna
-    zoom_level: f32,                  // Nivel de zoom personalizado
+    ring_shader: Option<&'static str>, 
+    ring_scale: Option<f32>,          
+    moon_shader: Option<&'static str>, 
+    moon_scale: Option<f32>,         
+    zoom_level: f32,                  
 }
 
 //WARPS
 pub struct WarpPoint {
     name: &'static str,
     position: Vec3,
-    zoom_level: f32, // Añadimos un nivel de zoom para cada warp
+    zoom_level: f32, 
 }
 
 fn calculate_planet_position(center: Vec3, orbit_radius: f32, orbit_speed: f32, time: u32) -> Vec3 {
-    let angle = time as f32 * orbit_speed; // Ángulo en radianes basado en el tiempo
+    let angle = time as f32 * orbit_speed; 
     let x = center.x + orbit_radius * angle.cos();
     let y = center.y + orbit_radius * angle.sin();
-    Vec3::new(x, y, center.z) // Devuelve la posición calculada respecto al centro
+    Vec3::new(x, y, center.z) 
 }
 
 fn create_warp_points(planets: &[Planet], sun_position: Vec3, time: u32) -> Vec<WarpPoint> {
@@ -234,7 +231,7 @@ fn create_warp_points(planets: &[Planet], sun_position: Vec3, time: u32) -> Vec<
         .map(|planet| WarpPoint {
             name: planet.name,
             position: calculate_planet_position(sun_position, planet.orbit_radius, planet.orbit_speed, time),
-            zoom_level: planet.zoom_level, // Usar el nivel de zoom definido en el planeta
+            zoom_level: planet.zoom_level, 
         })
         .collect()
 }
@@ -262,7 +259,7 @@ fn main() {
             ring_scale: None,
             moon_shader: None,
             moon_scale: None,
-            zoom_level: 1.5, // Nivel de zoom para Mercury
+            zoom_level: 1.5,
         },
         Planet {
             name: "Venus",
@@ -275,7 +272,7 @@ fn main() {
             ring_scale: None,
             moon_shader: None,
             moon_scale: None,
-            zoom_level: 1.5, // Nivel de zoom para Mercury
+            zoom_level: 1.5, 
         },
         Planet {
             name: "Earth",
@@ -288,7 +285,7 @@ fn main() {
             ring_scale: None,
             moon_shader: Some("moon_shader"),
             moon_scale: Some(6.0),
-            zoom_level: 1.5, // Nivel de zoom para Mercury
+            zoom_level: 1.5, 
         },
         Planet {
             name: "Mars",
@@ -301,7 +298,7 @@ fn main() {
             ring_scale: None,
             moon_shader: None,
             moon_scale: None,
-            zoom_level: 1.5, // Nivel de zoom para Mercury
+            zoom_level: 1.5,
         },
         Planet {
             name: "Jupiter",
@@ -314,7 +311,7 @@ fn main() {
             ring_scale: None,
             moon_shader: None,
             moon_scale: None,
-            zoom_level: 2.0, // Nivel de zoom para Mercury
+            zoom_level: 2.0, 
         },
         Planet {
             name: "Saturn",
@@ -327,7 +324,7 @@ fn main() {
             ring_scale: Some(10.0),
             moon_shader: Some("moon_shader"),
             moon_scale: Some(10.0),
-            zoom_level: 2.0, // Nivel de zoom para Mercury
+            zoom_level: 2.0, 
         },
         Planet {
             name: "Uranus",
@@ -340,7 +337,7 @@ fn main() {
             ring_scale: None,
             moon_shader: None,
             moon_scale: None,
-            zoom_level: 1.8, // Nivel de zoom para Mercury
+            zoom_level: 1.8, 
         },
     ];
 
@@ -367,6 +364,8 @@ fn main() {
     let ring_vertex_array = ring_obj.get_vertex_array();
     let moon_obj = Obj::load("assets/moon.obj").expect("Failed to load moon.obj");
     let moon_vertex_array = moon_obj.get_vertex_array();
+    let jet_obj = Obj::load("assets/jet.obj").expect("Failed to load jet.obj");
+    let jet_vertex_array = jet_obj.get_vertex_array();
 
     let mut time = 0;
 
@@ -388,7 +387,7 @@ fn main() {
 
 
     //Orbitas
-    let orbit_segments = 60; // Número de segmentos para suavizar las líneas
+    let orbit_segments = 60; 
     let orbits: Vec<Vec<Vertex>> = planets
         .iter()
         .map(|planet| create_orbit_points(
@@ -415,35 +414,16 @@ fn main() {
         let sun_position = Vec3::new(
             window_width as f32 / 2.0,
             window_height as f32 / 2.0,
-            camera_translation.z, // Actualizar Z según la posición de la cámara
+            camera_translation.z, 
         );
 
 
 
         let warp_points = create_warp_points(&planets, sun_position, time);    
 
-        /*for warp_point in &warp_points {
-            println!(
-                "Planet: {}, Calculated Position: {:?}, Camera Translation: {:?}",
-                warp_point.name, warp_point.position, camera_translation
-            );
-        }*/
-
-
         handle_warp(&window, &warp_points, &mut camera_translation, &mut camera_rotation, &mut camera_scale);
 
-
-        /*println!("Camera Translation: {:?}", camera_translation);
-        println!("Camera Scale: {:?}", camera_scale);*/
-
         handle_input(&window, &mut camera_translation, &mut camera_rotation, &mut camera_scale);
-        
-
-        /*// Depuración de valores de la cámara
-        println!("Camera Translation: {:?}", camera_translation);
-        println!("Camera Rotation: {:?}", camera_rotation);
-        println!("Camera Scale: {:?}", camera_scale);*/
-
 
         let view_matrix = create_view_matrix(camera_translation, camera_rotation, camera_scale);
 
@@ -452,10 +432,10 @@ fn main() {
             model_matrix: Mat4::identity(),
             view_matrix,
             projection_matrix: glm::perspective(
-                framebuffer_width as f32 / framebuffer_height as f32, // Relación de aspecto
-                45.0_f32.to_radians(),                               // Campo de visión
-                0.1,                                                 // Plano cercano
-                2000.0,                                              // Plano lejano ajustado
+                framebuffer_width as f32 / framebuffer_height as f32, 
+                45.0_f32.to_radians(),                               
+                0.1,                                                 
+                2000.0,                                              
             ),
             viewport_matrix: glm::scaling(&Vec3::new(
                 framebuffer_width as f32 / 2.0,
@@ -494,7 +474,7 @@ fn main() {
         skybox.render(&mut framebuffer, &skybox_uniforms, camera_translation);
 
         for orbit_points in &orbits {
-            let orbit_model_matrix = Mat4::identity(); // Las órbitas no rotan ni se escalan
+            let orbit_model_matrix = Mat4::identity(); 
             let orbit_uniforms = Uniforms {
                 model_matrix: orbit_model_matrix,
                 view_matrix: view_matrix,
@@ -515,8 +495,8 @@ fn main() {
         // Renderizar el Sol
         let sun_translation =
             Vec3::new(window_width as f32 / 2.0, window_height as f32 / 2.0, 0.0);
-        let sun_rotation = Vec3::new(0.0, 0.0, time as f32 * 0.05); // Velocidad de rotación del Sol
-        let sun_scale = 200.0; // Ajusta este valor según sea necesario
+        let sun_rotation = Vec3::new(0.0, 0.0, time as f32 * 0.05); 
+        let sun_scale = 200.0; 
 
         let sun_model_matrix = create_model_matrix(sun_translation, sun_scale, sun_rotation);
         let normal_matrix = sun_model_matrix.try_inverse().unwrap().transpose();
@@ -543,15 +523,16 @@ fn main() {
             "solar_surface",
         );
 
+
         // Renderizar los planetas
         for planet in &planets {
             let orbit_points = create_orbit_points(
                 Vec3::new(window_width as f32 / 2.0, window_height as f32 / 2.0, 0.0),
                 planet.orbit_radius,
-                100, // Número de segmentos para una órbita más suave
+                100, 
             );
 
-            render_orbit(&mut framebuffer, &orbit_points, Color::new(255, 255, 255)); // Blanco
+            render_orbit(&mut framebuffer, &orbit_points, Color::new(255, 255, 255)); 
 
 
             let angle = time as f32 * planet.orbit_speed;
@@ -560,7 +541,7 @@ fn main() {
 
             let model_matrix = create_model_matrix(
                 Vec3::new(orbit_x, orbit_y, 0.0),
-                planet.scale * 10.0, // Ajusta la escala si es necesario
+                planet.scale * 10.0, 
                 Vec3::new(0.0, 0.0, time as f32 * planet.rotation_speed),
             );
 
@@ -588,9 +569,9 @@ fn main() {
 
             if let (Some(ring_shader), Some(ring_scale)) = (planet.ring_shader, planet.ring_scale) {
                 let ring_model_matrix = create_model_matrix(
-                    Vec3::new(orbit_x, orbit_y, 0.0), // Asegúrate de que está en la posición del planeta
-                    ring_scale * 10.0,               // Escala ajustada para que el anillo sea visible
-                    Vec3::new(0.0, 0.0, 0.0),        // Anillos normalmente no rotan en este contexto
+                    Vec3::new(orbit_x, orbit_y, 0.0), 
+                    ring_scale * 10.0,               
+                    Vec3::new(0.0, 0.0, 0.0),        
                 );
                 
             
@@ -622,7 +603,7 @@ fn main() {
             
                 let moon_model_matrix = create_model_matrix(
                     Vec3::new(moon_x, moon_y, 0.0),
-                    moon_scale * 10.0, // Ajusta la escala manualmente si no es visible
+                    moon_scale * 10.0,
                     Vec3::new(0.0, 0.0, 0.0),
                 );
             
@@ -650,9 +631,6 @@ fn main() {
         
         // Renderizar el objeto seleccionado con shaders específicos
         match selected_object {
-            STAR => {
-                // Ya renderizamos el Sol, podrías agregar efectos adicionales si lo deseas
-            }
             VOLCANIC_PLANET => {
                 let translation = Vec3::new(window_width as f32 / 2.0, window_height as f32 / 2.0, 0.0);
                 let rotation = Vec3::new(0.0, 0.0, time as f32 * 0.05);
@@ -741,7 +719,6 @@ fn main() {
                 render(&mut framebuffer, &uniforms, &vertex_arrays, "vortex_shader");
             }
             RINGED_PLANET => {
-                // Encuentra el planeta seleccionado en la lista de planetas
                 if let Some(planet) = planets.iter().find(|p| p.name == "Saturn") {
                     let translation = Vec3::new(window_width as f32 / 2.0, window_height as f32 / 2.0, 0.0);
                     let rotation = Vec3::new(0.0, 0.0, time as f32 * 0.05);
@@ -775,7 +752,7 @@ fn main() {
                     if let (Some(ring_shader), Some(ring_scale)) = (planet.ring_shader, planet.ring_scale) {
                         let ring_model_matrix = create_model_matrix(
                             translation,
-                            ring_scale * 10.0, // Escala ajustada para que el anillo sea visible
+                            ring_scale * 10.0,
                             rotation,
                         );
                         uniforms.model_matrix = ring_model_matrix;
@@ -807,9 +784,8 @@ fn main() {
                 framebuffer.set_current_color(0xAAAAAA);
                 render(&mut framebuffer, &uniforms, &vertex_arrays, "rocky_planet");
 
-                // Generar la luna del planeta rocoso
-                let moon_orbit_radius = 50.0; // Radio de la órbita de la luna, ajustable
-                let moon_scale = scale * 0.3; // Tamaño de la luna en relación al planeta
+                let moon_orbit_radius = 50.0; 
+                let moon_scale = scale * 0.3; 
 
                 let moon_translation = translation
                     + Vec3::new(
@@ -852,6 +828,35 @@ fn main() {
             _ => {}
         }
 
+        // Calcular la posición fija de la nave en el centro de la pantalla
+        let jet_translation = Vec3::new(
+            window_width as f32 / 2.0,
+            window_height as f32 / 2.0 + 100.0, 
+            0.0,
+        );
+        let jet_rotation = Vec3::new(0.2, 0.0, 0.0); 
+        let jet_scale = 15.0; 
+
+        let jet_model_matrix = create_model_matrix(jet_translation, jet_scale, jet_rotation);
+
+        // Uniforms para la nave
+        let jet_uniforms = Uniforms {
+            model_matrix: jet_model_matrix,
+            view_matrix: Mat4::identity(), 
+            projection_matrix: Mat4::identity(), 
+            viewport_matrix: Mat4::identity(),
+            normal_matrix: jet_model_matrix.try_inverse().unwrap().transpose(),
+            time,
+            noise_open_simplex: create_open_simplex_noise(),
+            noise_cellular: create_cellular_noise(),
+            noise_perlin: create_perlin_noise(),
+            noise_value: create_value_noise(),
+            noise_value_cubic: create_value_cubic_noise(),
+        };
+
+        // Renderizar la nave en el centro de la pantalla
+        render(&mut framebuffer, &jet_uniforms, &jet_vertex_array, "jet_shader");
+
         // Actualizar la ventana una sola vez
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
@@ -863,9 +868,9 @@ fn main() {
 
 
 fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, scale: &mut f32) {
-    let move_speed = 5.0; // Reducir la velocidad de movimiento para un control más preciso
-    let rotation_speed = 0.05; // Reducir la velocidad de rotación
-    let zoom_speed = 0.05; // Reducir la velocidad de zoom
+    let move_speed = 40.0; 
+    let rotation_speed = 0.05; 
+    let zoom_speed = 0.05; 
 
     // Movimiento de cámara
     if window.is_key_down(Key::Left) {
@@ -875,10 +880,10 @@ fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, sc
         translation.x += move_speed;
     }
     if window.is_key_down(Key::Up) {
-        translation.y += move_speed; // Cambiar el signo para corregir la dirección
+        translation.y += move_speed; 
     }
     if window.is_key_down(Key::Down) {
-        translation.y -= move_speed; // Cambiar el signo para corregir la dirección
+        translation.y -= move_speed; 
     }
 
     // Control de rotación
@@ -897,12 +902,12 @@ fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, sc
 
     // Zoom
     if window.is_key_down(Key::Q) {
-        *scale *= 1.0 + zoom_speed; // Ajustar zoom multiplicativamente
+        *scale *= 1.0 + zoom_speed; 
     }
     if window.is_key_down(Key::E) {
-        *scale *= 1.0 - zoom_speed; // Ajustar zoom multiplicativamente
+        *scale *= 1.0 - zoom_speed; 
         if *scale < 0.1 {
-            *scale = 0.1; // Prevenir escala negativa o muy pequeña
+            *scale = 0.1; 
         }
     }
 }

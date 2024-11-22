@@ -1,6 +1,3 @@
-use crate::fragment::{Fragment, fragment_shader};
-use crate::Uniforms;
-
 pub struct Framebuffer {
     pub width: usize,
     pub height: usize,
@@ -39,10 +36,6 @@ impl Framebuffer {
                 self.zbuffer[index] = depth;
             }
         }
-    }
-
-    pub fn set_background_color(&mut self, color: u32) {
-        self.background_color = color;
     }
 
     pub fn set_current_color(&mut self, color: u32) {

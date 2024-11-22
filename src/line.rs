@@ -34,7 +34,8 @@ pub fn line(a: &Vertex, b: &Vertex) -> Vec<Fragment> {
             Vec2::new(x0 as f32, y0 as f32),
             z,
             intensity_value,
-            start
+            start,
+            normal_vector
         ));
 
         if x0 == x1 && y0 == y1 { break; }
@@ -77,7 +78,7 @@ pub fn draw_line(p1: &Vertex, p2: &Vertex, framebuffer: &mut Framebuffer, color:
     loop {
         if x >= 0 && y >= 0 && x < width && y < height {
             framebuffer.set_current_color(color.to_hex());
-            framebuffer.point(x as usize, y as usize, 0.0); // Profundidad arbitraria
+            framebuffer.point(x as usize, y as usize, 0.0); 
         }
 
         if x == x2 && y == y2 {
